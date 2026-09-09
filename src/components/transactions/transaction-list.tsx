@@ -8,13 +8,6 @@ import { useAuth } from "@/hooks/use-auth";
 import type { Transaction, Account, Category } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -23,35 +16,42 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   ArrowDownLeft,
   ArrowUpRight,
   ArrowRightLeft,
   Search,
-  Filter,
   Trash2,
-  Loader2,
+  Calendar,
+  Building2,
+  Tag,
 } from "lucide-react";
 
-const typeColors: Record<string, string> = {
-  income: "bg-green-100 text-green-700",
-  expense: "bg-red-100 text-red-700",
-  transfer: "bg-blue-100 text-blue-700",
-};
-
-const typeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-  income: ArrowDownLeft,
-  expense: ArrowUpRight,
-  transfer: ArrowRightLeft,
+const categoryIcons: Record<string, string> = {
+  Food: "🍔",
+  Transportation: "🚗",
+  Shopping: "🛍️",
+  Bills: "📄",
+  Entertainment: "🎬",
+  Health: "💊",
+  Education: "📚",
+  Housing: "🏠",
+  Personal: "👤",
+  Travel: "✈️",
+  Salary: "💰",
+  Freelance: "💻",
+  Business: "🏢",
+  Bonus: "🎁",
+  Investment: "📈",
+  Other: "📌",
 };
 
 export function TransactionList() {
@@ -116,6 +116,12 @@ export function TransactionList() {
   const getCategoryName = (id: string | null) =>
     id ? categories.find((c) => c.id === id)?.name || "-" : "-";
 
+  const getCategoryIcon = (id: string | null) => {
+    if (!id) return "📌";
+    const cat = categories.find((c) => c.id === id);
+    return categoryIcons[cat?.name || "Other"] || "📌";
+  };
+
   const handleDelete = async (id: string) => {
     const supabase = createClient();
     const { error } = await supabase.from("transactions").delete().eq("id", id);
@@ -127,212 +133,311 @@ export function TransactionList() {
     }
   };
 
+  const getTransactionColor = (type: string) => {
+    switch (type) {
+      case "income":
+        return "from-emerald-500 to-emerald-600";
+      case "expense":
+        return "from-red-500 to-red-600";
+      case "transfer":
+        return "from-blue-500 to-blue-600";
+      default:
+        return "from-gray-500 to-gray-600";
+    }
+  };
+
+  const getTransactionBg = (type: string) => {
+    switch (type) {
+      case "income":
+        return "bg-emerald-100 dark:bg-emerald-900/30";
+      case "expense":
+        return "bg-red-100 dark:bg-red-900/30";
+      case "transfer":
+        return "bg-blue-100 dark:bg-blue-900/30";
+      default:
+        return "bg-gray-100 dark:bg-gray-900/30";
+    }
+  };
+
+  const getTransactionText = (type: string) => {
+    switch (type) {
+      case "income":
+        return "text-emerald-600 dark:text-emerald-400";
+      case "expense":
+        return "text-red-600 dark:text-red-400";
+      case "transfer":
+        return "text-blue-600 dark:text-blue-400";
+      default:
+        return "text-gray-600 dark:text-gray-400";
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
+        {/* Header Skeleton */}
         <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="h-10 w-32" />
+          <div className="space-y-2">
+            <div className="h-8 w-32 skeleton" />
+            <div className="h-4 w-48 skeleton" />
+          </div>
+          <div className="h-10 w-32 skeleton" />
         </div>
-        <Skeleton className="h-12 w-full" />
-        <div className="space-y-2">
+
+        {/* Search Skeleton */}
+        <div className="h-12 w-full skeleton rounded-xl" />
+
+        {/* Tabs Skeleton */}
+        <div className="flex gap-2">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-10 w-24 skeleton rounded-full" />
+          ))}
+        </div>
+
+        {/* List Skeleton */}
+        <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full" />
+            <div key={i} className="card-modern p-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 skeleton rounded-xl" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-32 skeleton" />
+                  <div className="h-3 w-24 skeleton" />
+                </div>
+                <div className="h-5 w-20 skeleton" />
+              </div>
+            </div>
           ))}
         </div>
       </div>
     );
   }
 
+  // Group transactions by date
+  const groupedTransactions = filteredTransactions.reduce(
+    (acc, transaction) => {
+      const date = transaction.date;
+      if (!acc[date]) {
+        acc[date] = [];
+      }
+      acc[date].push(transaction);
+      return acc;
+    },
+    {} as Record<string, Transaction[]>
+  );
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between animate-fade-in">
         <div>
-          <h1 className="text-2xl font-bold">Transaksi</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold">Transaksi</h1>
+          <p className="text-muted-foreground mt-1">
             {filteredTransactions.length} transaksi ditemukan
           </p>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col gap-4 md:flex-row">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari transaksi..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select value={filterType} onValueChange={(v) => setFilterType(v ?? "all")}>
-              <SelectTrigger className="w-full md:w-[150px]">
-                <SelectValue placeholder="Tipe" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Tipe</SelectItem>
-                <SelectItem value="income">Pemasukan</SelectItem>
-                <SelectItem value="expense">Pengeluaran</SelectItem>
-                <SelectItem value="transfer">Transfer</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterAccount} onValueChange={(v) => setFilterAccount(v ?? "all")}>
-              <SelectTrigger className="w-full md:w-[150px]">
-                <SelectValue placeholder="Akun" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Akun</SelectItem>
-                {accounts.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    {account.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v ?? "all")}>
-              <SelectTrigger className="w-full md:w-[150px]">
-                <SelectValue placeholder="Kategori" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Kategori</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {/* Search Bar */}
+      <div className="relative animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Input
+          placeholder="Cari transaksi..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-12 h-12 text-base bg-white dark:bg-card border-2 rounded-xl"
+        />
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-2 animate-fade-in-up" style={{ animationDelay: "0.15s" }}>
+        {[
+          { value: "all", label: "Semua" },
+          { value: "income", label: "Pemasukan" },
+          { value: "expense", label: "Pengeluaran" },
+          { value: "transfer", label: "Transfer" },
+        ].map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => setFilterType(tab.value)}
+            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+              filterType === tab.value
+                ? "bg-primary text-white shadow-md"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Filter Dropdowns */}
+      <div className="flex gap-3 animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
+        <Select value={filterAccount} onValueChange={(v) => setFilterAccount(v ?? "all")}>
+          <SelectTrigger className="w-full md:w-[180px] h-11">
+            <Building2 className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Akun" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Akun</SelectItem>
+            {accounts.map((account) => (
+              <SelectItem key={account.id} value={account.id}>
+                {account.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v ?? "all")}>
+          <SelectTrigger className="w-full md:w-[180px] h-11">
+            <Tag className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Kategori" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Kategori</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category.id} value={category.id}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Transaction List */}
+      {filteredTransactions.length === 0 ? (
+        <div className="card-modern p-12 text-center animate-fade-in">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+            <Search className="h-8 w-8 text-muted-foreground" />
           </div>
-        </CardContent>
-      </Card>
+          <p className="text-lg font-medium text-muted-foreground">Belum ada transaksi</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Mulai catat transaksi pertama Anda
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {Object.entries(groupedTransactions).map(([date, txs], groupIndex) => (
+            <div
+              key={date}
+              className="animate-fade-in-up"
+              style={{ animationDelay: `${0.25 + groupIndex * 0.05}s` }}
+            >
+              {/* Date Header */}
+              <div className="flex items-center gap-2 mb-3">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">
+                  {formatDateShort(date)}
+                </span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          {filteredTransactions.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Belum ada transaksi</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Deskripsi</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead>Akun</TableHead>
-                  <TableHead className="text-right">Jumlah</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredTransactions.map((transaction) => {
-                  const Icon = typeIcons[transaction.type] || ArrowUpRight;
-                  return (
-                    <TableRow key={transaction.id}>
-                      <TableCell className="text-sm">
-                        {formatDateShort(transaction.date)}
-                      </TableCell>
-                      <TableCell>
+              {/* Transactions for this date */}
+              <div className="space-y-2">
+                {txs.map((transaction) => (
+                  <div
+                    key={transaction.id}
+                    className="card-modern p-4 hover:shadow-md transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-4">
+                      {/* Category Icon */}
+                      <div
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl ${getTransactionBg(
+                          transaction.type
+                        )}`}
+                      >
+                        {getCategoryIcon(transaction.category_id)}
+                      </div>
+
+                      {/* Transaction Info */}
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <div
-                            className={`p-1 rounded-full ${
-                              transaction.type === "income"
-                                ? "bg-green-100"
-                                : transaction.type === "expense"
-                                ? "bg-red-100"
-                                : "bg-blue-100"
-                            }`}
-                          >
-                            <Icon
-                              className={`h-3 w-3 ${
-                                transaction.type === "income"
-                                  ? "text-green-600"
-                                  : transaction.type === "expense"
-                                  ? "text-red-600"
-                                  : "text-blue-600"
-                              }`}
-                            />
-                          </div>
-                          <div>
-                            <p className="font-medium">{transaction.description}</p>
-                            {transaction.notes && (
-                              <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                                {transaction.notes}
-                              </p>
-                            )}
-                          </div>
+                          <p className="font-semibold truncate">
+                            {transaction.description}
+                          </p>
+                          {transaction.notes && (
+                            <p className="text-xs text-muted-foreground truncate hidden sm:block">
+                              • {transaction.notes}
+                            </p>
+                          )}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {getCategoryName(transaction.category_id)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {getAccountName(transaction.account_id)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span
-                          className={`font-medium ${
-                            transaction.type === "income"
-                              ? "text-green-600"
-                              : transaction.type === "expense"
-                              ? "text-red-600"
-                              : "text-blue-600"
-                          }`}
-                        >
-                          {transaction.type === "income" ? "+" : transaction.type === "expense" ? "-" : ""}
-                          {formatCurrency(Number(transaction.amount))}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setDeleteConfirmId(transaction.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge
+                            variant="outline"
+                            className="text-xs"
+                          >
+                            {getCategoryName(transaction.category_id)}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {getAccountName(transaction.account_id)}
+                          </span>
+                        </div>
+                      </div>
 
-      {deleteConfirmId && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-red-700">
-                Hapus transaksi ini? Tindakan tidak dapat dibatalkan.
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDeleteConfirmId(null)}
-                >
-                  Batal
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDelete(deleteConfirmId)}
-                >
-                  Hapus
-                </Button>
+                      {/* Amount */}
+                      <div className="text-right">
+                        <p
+                          className={`text-lg font-bold font-mono ${getTransactionText(
+                            transaction.type
+                          )}`}
+                        >
+                          {transaction.type === "income"
+                            ? "+"
+                            : transaction.type === "expense"
+                            ? "-"
+                            : ""}
+                          {formatCurrency(Number(transaction.amount))}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {transaction.type === "income"
+                            ? "Pemasukan"
+                            : transaction.type === "expense"
+                            ? "Pengeluaran"
+                            : "Transfer"}
+                        </p>
+                      </div>
+
+                      {/* Delete Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirmId(transaction.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-destructive/10 rounded-lg"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          </CardContent>
-        </Card>
+          ))}
+        </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Hapus Transaksi</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus transaksi ini? Tindakan tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+            >
+              Hapus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
