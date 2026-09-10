@@ -1,31 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
-import { Loader2, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { quickEntrySchema, type QuickEntryInput } from "@/lib/validators";
-import type { Account, Category } from "@/types";
+import { useAuth } from "@/hooks/use-auth";
+import { formatCurrency } from "@/lib/utils";
+import { X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -33,259 +15,338 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAuth } from "@/hooks/use-auth";
-import { formatCurrency } from "@/lib/utils";
-
-interface ParsedTransaction {
-  amount: number;
-  description: string;
-  type: "income" | "expense";
-  category_id: string | null;
-  account_id: string;
-  date: string;
-}
-
-function parseQuickEntry(text: string): Partial<ParsedTransaction> {
-  const result: Partial<ParsedTransaction> = {};
-
-  // Parse amount: 50k, 10jt, 186000, Rp50.000
-  const amountMatch = text.match(/(?:rp\.?\s*)?(\d+(?:\.\d{3})*(?:,\d+)?)\s*(k|jt|m|juta|ribu)?/i);
-  if (amountMatch) {
-    let amount = parseInt(amountMatch[1].replace(/\./g, ""), 10);
-    const suffix = amountMatch[2]?.toLowerCase();
-    if (suffix === "k" || suffix === "ribu") amount *= 1000;
-    if (suffix === "jt" || suffix === "juta" || suffix === "m") amount *= 1000000;
-    result.amount = amount;
-  }
-
-  // Parse description (everything except amount)
-  let description = text.replace(/(?:rp\.?\s*)?\d+(?:\.\d{3})*(?:,\d+)?\s*(k|jt|m|juta|ribu)?/i, "").trim();
-  if (description) {
-    result.description = description;
-  }
-
-  // Default type is expense
-  result.type = "expense";
-  result.date = new Date().toISOString().split("T")[0];
-
-  return result;
-}
 
 interface QuickEntryProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function QuickEntry({ open, onOpenChange }: QuickEntryProps) {
-  const router = useRouter();
+const categoryChips = [
+  { name: "Makan", icon: "🍔" },
+  { name: "Transport", icon: "🚗" },
+  { name: "Belanja", icon: "🛍️" },
+  { name: "Tagihan", icon: "📄" },
+  { name: "Hiburan", icon: "🎬" },
+];
+
+export function QuickEntry({ isOpen, onClose, open, onOpenChange }: QuickEntryProps) {
   const { user } = useAuth();
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [input, setInput] = useState("");
+  const [amount, setAmount] = useState<number | null>(null);
+  const [description, setDescription] = useState("");
+  const [categoryId, setCategoryId] = useState<string>("");
+  const [accountId, setAccountId] = useState<string>("");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [type, setType] = useState<"income" | "expense">("expense");
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [parsed, setParsed] = useState<Partial<ParsedTransaction> | null>(null);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm<QuickEntryInput>({
-    resolver: zodResolver(quickEntrySchema),
-  });
-
-  const watchText = watch("text");
+  const isModalOpen = isOpen ?? open ?? false;
+  const handleClose = onClose ?? (() => onOpenChange?.(false));
 
   useEffect(() => {
-    if (user && open) {
-      fetchAccounts();
-      fetchCategories();
+    if (user && isModalOpen) {
+      fetchData();
     }
-  }, [user, open]);
+  }, [user, isModalOpen]);
 
   useEffect(() => {
-    if (watchText) {
-      const result = parseQuickEntry(watchText);
-      setParsed(result);
+    if (isModalOpen) {
+      setInput("");
+      setAmount(null);
+      setDescription("");
+      setCategoryId("");
+      setAccountId("");
+      setDate(new Date().toISOString().split("T")[0]);
+      setType("expense");
     }
-  }, [watchText]);
+  }, [isModalOpen]);
 
-  const fetchAccounts = async () => {
+  const fetchData = async () => {
     const supabase = createClient();
-    const { data } = await supabase
-      .from("accounts")
-      .select("*")
-      .eq("user_id", user?.id)
-      .eq("is_archived", false)
-      .order("name");
 
-    if (data) setAccounts(data);
+    const [accountsRes, categoriesRes] = await Promise.all([
+      supabase
+        .from("accounts")
+        .select("*")
+        .eq("user_id", user?.id)
+        .eq("is_archived", false),
+      supabase
+        .from("categories")
+        .select("*")
+        .or(`user_id.eq.${user?.id},user_id.is.null`),
+    ]);
+
+    if (accountsRes.data) {
+      setAccounts(accountsRes.data);
+      if (accountsRes.data.length > 0) {
+        setAccountId(accountsRes.data[0].id);
+      }
+    }
+    if (categoriesRes.data) setCategories(categoriesRes.data);
   };
 
-  const fetchCategories = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("categories")
-      .select("*")
-      .or(`user_id.eq.${user?.id},user_id.is.null`)
-      .order("sort_order");
+  const parseQuickEntry = (text: string) => {
+    const lower = text.toLowerCase();
 
-    if (data) setCategories(data);
+    // Parse amount patterns: 50k, 50rb, 50000, 1.5jt, 1.5m
+    let parsedAmount = 0;
+    const amountMatch = lower.match(/(\d+(?:[.,]\d+)?)\s*(k|rb|jt|m|juta)?/);
+    if (amountMatch) {
+      let num = parseFloat(amountMatch[1].replace(",", "."));
+      const suffix = amountMatch[2];
+      if (suffix === "k" || suffix === "rb") {
+        num *= 1000;
+      } else if (suffix === "jt" || suffix === "m" || suffix === "juta") {
+        num *= 1000000;
+      }
+      parsedAmount = num;
+    }
+
+    // Parse category from keywords
+    const categoryKeywords: Record<string, string[]> = {
+      Makan: ["makan", "lunch", "dinner", "breakfast", "kopi", "coffee", "food", "restaurant"],
+      Transport: ["transport", "gojek", "grab", "bensin", "parkir", "tol", "transportasi"],
+      Belanja: ["belanja", "shopping", "toko", "mall"],
+      Tagihan: ["tagihan", "listrik", "air", "internet", "pulsa", "bills"],
+      Hiburan: ["hiburan", "movie", "film", "netflix", "spotify", "game"],
+    };
+
+    let parsedCategory = "";
+    for (const [cat, keywords] of Object.entries(categoryKeywords)) {
+      if (keywords.some((kw) => lower.includes(kw))) {
+        parsedCategory = cat;
+        break;
+      }
+    }
+
+    // Remove amount from description
+    let parsedDescription = text.replace(/\d+(?:[.,]\d+)?\s*(k|rb|jt|m|juta)?/gi, "").trim();
+    if (!parsedDescription) {
+      parsedDescription = text;
+    }
+
+    return {
+      amount: parsedAmount,
+      description: parsedDescription,
+      category: parsedCategory,
+    };
   };
 
-  const filteredCategories = categories.filter(
-    (c) => c.type === (parsed?.type || "expense")
-  );
+  const handleInputChange = (value: string) => {
+    setInput(value);
+    const parsed = parseQuickEntry(value);
+    if (parsed.amount > 0) setAmount(parsed.amount);
+    if (parsed.description) setDescription(parsed.description);
+    if (parsed.category) {
+      const cat = categories.find(
+        (c) => c.name.toLowerCase() === parsed.category.toLowerCase()
+      );
+      if (cat) setCategoryId(cat.id);
+    }
+  };
 
-  const onSubmit = async () => {
-    if (!parsed || !parsed.amount || !parsed.description) return;
+  const handleChipClick = (chipName: string) => {
+    setInput(`${chipName} `);
+    const cat = categories.find(
+      (c) => c.name.toLowerCase().includes(chipName.toLowerCase())
+    );
+    if (cat) setCategoryId(cat.id);
+  };
+
+  const handleSubmit = async () => {
+    if (!amount || !accountId) return;
 
     setIsSubmitting(true);
     const supabase = createClient();
 
-    const accountId = accounts[0]?.id;
-    if (!accountId) {
-      setIsSubmitting(false);
-      return;
-    }
-
     const { error } = await supabase.from("transactions").insert({
       user_id: user?.id,
       account_id: accountId,
-      category_id: parsed.category_id || null,
-      type: parsed.type || "expense",
-      amount: parsed.amount,
-      description: parsed.description,
-      date: parsed.date || new Date().toISOString().split("T")[0],
+      category_id: categoryId || null,
+      type: type,
+      amount: amount,
+      description: description || input,
+      date: date,
     });
 
     if (!error) {
-      reset();
-      setParsed(null);
-      onOpenChange(false);
-      router.refresh();
+      handleClose();
     }
     setIsSubmitting(false);
   };
 
+  const filteredCategories = categories.filter((c) => c.type === type);
+
+  if (!isModalOpen) return null;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-yellow-500" />
-            Quick Entry
-          </DialogTitle>
-          <DialogDescription>
-            Ketik transaksi secara cepat. Contoh: &quot;lunch 50k&quot;, &quot;gaji 10jt&quot;
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="text">Input Cepat</Label>
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={handleClose}
+      />
+
+      {/* Modal */}
+      <div className="relative bg-white rounded-2xl w-full max-w-md mx-4 shadow-2xl animate-scale-in">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center">
+              <Zap className="h-4 w-4 text-teal-600" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Tambah Transaksi Cepat
+            </h2>
+          </div>
+          <button
+            onClick={handleClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="h-5 w-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 space-y-4">
+          {/* Quick Input */}
+          <div className="relative">
+            <Zap className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-teal-500" />
             <Input
-              id="text"
-              placeholder="Contoh: lunch 50k, gaji 10jt"
-              {...register("text")}
-              autoFocus
+              placeholder='Ketik seperti "Makan 50rb", "Gaji 5jt", "Transfer BCA 100k"'
+              value={input}
+              onChange={(e) => handleInputChange(e.target.value)}
+              className="pl-10 h-12 text-base"
             />
-            {errors.text && (
-              <p className="text-sm text-red-500">{errors.text.message}</p>
-            )}
           </div>
 
-          {parsed && (
-            <Card className="bg-muted/50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Preview Transaksi</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Jumlah:</span>
-                  <span className="font-medium">
-                    {parsed.amount ? formatCurrency(parsed.amount) : "-"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Deskripsi:</span>
-                  <span className="font-medium">{parsed.description || "-"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Tipe:</span>
-                  <span className="font-medium capitalize">{parsed.type || "-"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Tanggal:</span>
-                  <span className="font-medium">{parsed.date || "-"}</span>
-                </div>
+          <p className="text-xs text-gray-500">
+            Ketik seperti &quot;Makan 50rb&quot;, &quot;Gaji 5jt&quot;, &quot;Transfer BCA 100k&quot;
+          </p>
 
-                <div className="space-y-2 pt-2">
-                  <Label className="text-xs">Akun</Label>
-                  <Select
-                    onValueChange={(value) => {
-                      const accountId = String(value ?? "");
-                      if (accountId) setParsed({ ...parsed, account_id: accountId });
-                    }}
-                  >
-                    <SelectTrigger className="h-8">
-                      <SelectValue placeholder="Pilih akun" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          {/* Category Chips */}
+          <div className="flex flex-wrap gap-2">
+            {categoryChips.map((chip) => (
+              <button
+                key={chip.name}
+                onClick={() => handleChipClick(chip.name)}
+                className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition-colors"
+              >
+                {chip.icon} {chip.name}
+              </button>
+            ))}
+          </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs">Kategori</Label>
-                  <Select
-                    onValueChange={(value) => {
-                      setParsed({ ...parsed, category_id: String(value ?? "") || null });
-                    }}
-                  >
-                    <SelectTrigger className="h-8">
-                      <SelectValue placeholder="Pilih kategori" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredCategories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+          {/* Parsed Result */}
+          {amount && amount > 0 && (
+            <div className="p-4 bg-gray-50 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-xl">
+                  {categories.find((c) => c.id === categoryId)?.name
+                    ? categoryChips.find(
+                        (ch) =>
+                          ch.name.toLowerCase() ===
+                          categories.find((c) => c.id === categoryId)?.name.toLowerCase()
+                      )?.icon || "📌"
+                    : "📌"}
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">{description || input}</p>
+                  <p className="text-sm text-gray-500">
+                    {categories.find((c) => c.id === categoryId)?.name || "Lainnya"}
+                  </p>
+                </div>
+                <p className="text-xl font-bold text-red-500 font-mono">
+                  -{formatCurrency(amount)}
+                </p>
+              </div>
+            </div>
           )}
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
+          {/* Form Fields */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm text-gray-600">Kategori</Label>
+              <Select value={categoryId} onValueChange={(v) => { if (v) setCategoryId(v); }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredCategories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm text-gray-600">Tanggal</Label>
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm text-gray-600">Akun</Label>
+            <Select value={accountId} onValueChange={(v) => { if (v) setAccountId(v); }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih akun" />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.map((acc) => (
+                  <SelectItem key={acc.id} value={acc.id}>
+                    {acc.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Type Toggle */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setType("expense")}
+              className={`flex-1 py-2 rounded-xl font-medium transition-colors ${
+                type === "expense"
+                  ? "bg-red-500 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
             >
-              Batal
-            </Button>
-            <Button
-              onClick={onSubmit}
-              disabled={isSubmitting || !parsed?.amount || !parsed?.description}
+              Pengeluaran
+            </button>
+            <button
+              onClick={() => setType("income")}
+              className={`flex-1 py-2 rounded-xl font-medium transition-colors ${
+                type === "income"
+                  ? "bg-emerald-500 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
             >
-              {isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Zap className="mr-2 h-4 w-4" />
-              )}
-              Simpan
-            </Button>
-          </DialogFooter>
+              Pemasukan
+            </button>
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-100">
+          <Button
+            onClick={handleSubmit}
+            disabled={!amount || !accountId || isSubmitting}
+            className="w-full h-12 text-base font-semibold bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 rounded-xl"
+          >
+            {isSubmitting ? "Menyimpan..." : "Simpan Transaksi"}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }

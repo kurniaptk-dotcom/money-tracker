@@ -23,7 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -33,6 +32,7 @@ import {
   Calendar,
   Building2,
   Tag,
+  Filter,
 } from "lucide-react";
 
 const categoryIcons: Record<string, string> = {
@@ -178,33 +178,33 @@ export function TransactionList() {
         {/* Header Skeleton */}
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <div className="h-8 w-32 skeleton" />
-            <div className="h-4 w-48 skeleton" />
+            <div className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
+            <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
           </div>
-          <div className="h-10 w-32 skeleton" />
+          <div className="h-10 w-32 bg-gray-200 rounded animate-pulse" />
         </div>
 
         {/* Search Skeleton */}
-        <div className="h-12 w-full skeleton rounded-xl" />
+        <div className="h-12 w-full bg-gray-200 rounded-xl animate-pulse" />
 
         {/* Tabs Skeleton */}
         <div className="flex gap-2">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-10 w-24 skeleton rounded-full" />
+            <div key={i} className="h-10 w-24 bg-gray-200 rounded-full animate-pulse" />
           ))}
         </div>
 
         {/* List Skeleton */}
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="card-modern p-4">
+            <div key={i} className="bg-white p-4 rounded-2xl border border-gray-100">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 skeleton rounded-xl" />
+                <div className="w-12 h-12 bg-gray-200 rounded-xl animate-pulse" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 w-32 skeleton" />
-                  <div className="h-3 w-24 skeleton" />
+                  <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-3 w-24 bg-gray-200 rounded animate-pulse" />
                 </div>
-                <div className="h-5 w-20 skeleton" />
+                <div className="h-5 w-20 bg-gray-200 rounded animate-pulse" />
               </div>
             </div>
           ))}
@@ -229,28 +229,28 @@ export function TransactionList() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between animate-fade-in">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Transaksi</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Transaksi</h1>
+          <p className="text-gray-500 mt-1">
             {filteredTransactions.length} transaksi ditemukan
           </p>
         </div>
       </div>
 
       {/* Search Bar */}
-      <div className="relative animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
         <Input
           placeholder="Cari transaksi..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-12 h-12 text-base bg-white dark:bg-card border-2 rounded-xl"
+          className="pl-12 h-12 text-base bg-white border-gray-200 rounded-xl"
         />
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2 animate-fade-in-up" style={{ animationDelay: "0.15s" }}>
+      <div className="flex gap-2 overflow-x-auto pb-2">
         {[
           { value: "all", label: "Semua" },
           { value: "income", label: "Pemasukan" },
@@ -262,8 +262,8 @@ export function TransactionList() {
             onClick={() => setFilterType(tab.value)}
             className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
               filterType === tab.value
-                ? "bg-primary text-white shadow-md"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                ? "bg-teal-500 text-white shadow-md shadow-teal-500/30"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
             {tab.label}
@@ -272,10 +272,10 @@ export function TransactionList() {
       </div>
 
       {/* Filter Dropdowns */}
-      <div className="flex gap-3 animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
+      <div className="flex gap-3">
         <Select value={filterAccount} onValueChange={(v) => setFilterAccount(v ?? "all")}>
-          <SelectTrigger className="w-full md:w-[180px] h-11">
-            <Building2 className="h-4 w-4 mr-2" />
+          <SelectTrigger className="w-full md:w-[180px] h-11 bg-white border-gray-200 rounded-xl">
+            <Building2 className="h-4 w-4 mr-2 text-gray-400" />
             <SelectValue placeholder="Akun" />
           </SelectTrigger>
           <SelectContent>
@@ -289,8 +289,8 @@ export function TransactionList() {
         </Select>
 
         <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v ?? "all")}>
-          <SelectTrigger className="w-full md:w-[180px] h-11">
-            <Tag className="h-4 w-4 mr-2" />
+          <SelectTrigger className="w-full md:w-[180px] h-11 bg-white border-gray-200 rounded-xl">
+            <Tag className="h-4 w-4 mr-2 text-gray-400" />
             <SelectValue placeholder="Kategori" />
           </SelectTrigger>
           <SelectContent>
@@ -306,30 +306,26 @@ export function TransactionList() {
 
       {/* Transaction List */}
       {filteredTransactions.length === 0 ? (
-        <div className="card-modern p-12 text-center animate-fade-in">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-            <Search className="h-8 w-8 text-muted-foreground" />
+        <div className="bg-white p-12 text-center rounded-2xl border border-gray-100">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+            <Search className="h-8 w-8 text-gray-400" />
           </div>
-          <p className="text-lg font-medium text-muted-foreground">Belum ada transaksi</p>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-lg font-medium text-gray-900">Belum ada transaksi</p>
+          <p className="text-sm text-gray-500 mt-1">
             Mulai catat transaksi pertama Anda
           </p>
         </div>
       ) : (
         <div className="space-y-6">
           {Object.entries(groupedTransactions).map(([date, txs], groupIndex) => (
-            <div
-              key={date}
-              className="animate-fade-in-up"
-              style={{ animationDelay: `${0.25 + groupIndex * 0.05}s` }}
-            >
+            <div key={date}>
               {/* Date Header */}
               <div className="flex items-center gap-2 mb-3">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-muted-foreground">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                <span className="text-sm font-medium text-gray-500">
                   {formatDateShort(date)}
                 </span>
-                <div className="flex-1 h-px bg-border" />
+                <div className="flex-1 h-px bg-gray-200" />
               </div>
 
               {/* Transactions for this date */}
@@ -337,7 +333,7 @@ export function TransactionList() {
                 {txs.map((transaction) => (
                   <div
                     key={transaction.id}
-                    className="card-modern p-4 hover:shadow-md transition-all cursor-pointer group"
+                    className="bg-white p-4 rounded-2xl border border-gray-100 hover:shadow-md transition-all cursor-pointer group"
                   >
                     <div className="flex items-center gap-4">
                       {/* Category Icon */}
@@ -352,23 +348,21 @@ export function TransactionList() {
                       {/* Transaction Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="font-semibold truncate">
+                          <p className="font-semibold text-gray-900 truncate">
                             {transaction.description}
                           </p>
                           {transaction.notes && (
-                            <p className="text-xs text-muted-foreground truncate hidden sm:block">
+                            <p className="text-xs text-gray-500 truncate hidden sm:block">
                               • {transaction.notes}
                             </p>
                           )}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
-                          <Badge
-                            variant="outline"
-                            className="text-xs"
-                          >
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            {getCategoryIcon(transaction.category_id)}{" "}
                             {getCategoryName(transaction.category_id)}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
+                          </span>
+                          <span className="text-xs text-gray-400">
                             {getAccountName(transaction.account_id)}
                           </span>
                         </div>
@@ -388,7 +382,7 @@ export function TransactionList() {
                             : ""}
                           {formatCurrency(Number(transaction.amount))}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-gray-400 mt-1">
                           {transaction.type === "income"
                             ? "Pemasukan"
                             : transaction.type === "expense"
@@ -403,9 +397,9 @@ export function TransactionList() {
                           e.stopPropagation();
                           setDeleteConfirmId(transaction.id);
                         }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-destructive/10 rounded-lg"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-50 rounded-lg"
                       >
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                        <Trash2 className="h-4 w-4 text-red-500" />
                       </button>
                     </div>
                   </div>
@@ -418,20 +412,25 @@ export function TransactionList() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Hapus Transaksi</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl">Hapus Transaksi</DialogTitle>
+            <DialogDescription className="text-gray-500">
               Apakah Anda yakin ingin menghapus transaksi ini? Tindakan tidak dapat dibatalkan.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteConfirmId(null)}
+              className="rounded-xl"
+            >
               Batal
             </Button>
             <Button
               variant="destructive"
               onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+              className="rounded-xl"
             >
               Hapus
             </Button>

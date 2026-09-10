@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, Pencil, Trash2, Building2, Wallet, Smartphone, CreditCard, TrendingUp, PiggyBank, MoreHorizontal } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Building2, Wallet, Smartphone, CreditCard, TrendingUp, PiggyBank, MoreHorizontal, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { accountSchema, type AccountInput } from "@/lib/validators";
 import { formatCurrency } from "@/lib/utils";
@@ -12,12 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +47,16 @@ const accountTypeLabels: Record<string, string> = {
   investment: "Investasi",
   savings: "Tabungan",
   custom: "Lainnya",
+};
+
+const accountTypeColors: Record<string, string> = {
+  bank: "from-blue-500 to-indigo-500",
+  cash: "from-green-500 to-emerald-500",
+  "e-wallet": "from-purple-500 to-pink-500",
+  "credit-card": "from-orange-500 to-red-500",
+  investment: "from-teal-500 to-cyan-500",
+  savings: "from-yellow-500 to-orange-500",
+  custom: "from-gray-500 to-gray-600",
 };
 
 export function AccountList() {
@@ -181,18 +185,31 @@ export function AccountList() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
+            <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
+          </div>
+          <div className="h-10 w-32 bg-gray-200 rounded-xl animate-pulse" />
+        </div>
+        <div className="bg-gradient-to-r from-teal-500 to-emerald-500 rounded-2xl p-6 h-40 animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl p-6 h-40 animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Akun</h1>
-          <p className="text-muted-foreground">Kelola akun dan wallet Anda</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Akun</h1>
+          <p className="text-gray-500 mt-1">Kelola akun dan wallet Anda</p>
         </div>
         <Button
           onClick={() => {
@@ -200,71 +217,91 @@ export function AccountList() {
             reset();
             setIsDialogOpen(true);
           }}
+          className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 rounded-xl"
         >
           <Plus className="mr-2 h-4 w-4" />
           Tambah Akun
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Total Saldo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold">{formatCurrency(totalBalance)}</p>
-        </CardContent>
-      </Card>
+      {/* Total Balance Card */}
+      <div className="bg-gradient-to-r from-teal-500 via-teal-600 to-emerald-500 rounded-2xl p-6 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20" />
+        <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full -ml-10 -mb-10" />
+        
+        <div className="relative z-10">
+          <p className="text-white/80 text-sm font-medium mb-2">Total Saldo</p>
+          <p className="text-3xl md:text-4xl font-bold font-mono">
+            {formatCurrency(totalBalance)}
+          </p>
+          <p className="text-white/60 text-sm mt-2">
+            Dari {accounts.filter((a) => !a.is_archived).length} akun aktif
+          </p>
+        </div>
+      </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {/* Account Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {accounts.map((account) => {
           const Icon = accountTypeIcons[account.type] || MoreHorizontal;
+          const colorClass = accountTypeColors[account.type] || accountTypeColors.custom;
+          
           return (
-            <Card key={account.id} className={account.is_archived ? "opacity-60" : ""}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {account.name}
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
+            <div
+              key={account.id}
+              className={`bg-white rounded-2xl p-6 border border-gray-100 hover:shadow-lg transition-all ${
+                account.is_archived ? "opacity-60" : ""
+              }`}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center shadow-lg`}>
+                    <Icon className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">{account.name}</p>
+                    <p className="text-sm text-gray-500">
+                      {accountTypeLabels[account.type]}
+                      {account.is_archived && " (Diarsipkan)"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
                     onClick={() => handleEdit(account)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
+                    <Pencil className="h-4 w-4 text-gray-500" />
+                  </button>
+                  <button
                     onClick={() => setDeleteConfirmId(account.id)}
+                    className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </button>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {formatCurrency(Number(account.current_balance))}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {accountTypeLabels[account.type]}
-                  {account.is_archived && " (Diarsipkan)"}
-                </p>
-              </CardContent>
-            </Card>
+              </div>
+              
+              <div className="text-2xl font-bold text-gray-900 font-mono">
+                {formatCurrency(Number(account.current_balance))}
+              </div>
+              
+              {account.notes && (
+                <p className="text-sm text-gray-500 mt-2 truncate">{account.notes}</p>
+              )}
+            </div>
           );
         })}
       </div>
 
+      {/* Add Account Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-xl">
               {editingAccount ? "Edit Akun" : "Tambah Akun Baru"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-gray-500">
               {editingAccount
                 ? "Ubah detail akun Anda"
                 : "Tambahkan akun baru untuk mulai melacak keuangan"}
@@ -272,19 +309,24 @@ export function AccountList() {
           </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nama Akun</Label>
-              <Input id="name" placeholder="Contoh: BCA, GoPay" {...register("name")} />
+              <Label className="text-sm font-medium text-gray-700">Nama Akun</Label>
+              <Input
+                placeholder="Contoh: BCA, GoPay"
+                {...register("name")}
+                className="h-12 bg-gray-50 border-gray-200 rounded-xl"
+              />
               {errors.name && (
                 <p className="text-sm text-red-500">{errors.name.message}</p>
               )}
             </div>
+            
             <div className="space-y-2">
-              <Label htmlFor="type">Tipe Akun</Label>
+              <Label className="text-sm font-medium text-gray-700">Tipe Akun</Label>
               <Select
                 value={watchType}
                 onValueChange={(value) => setValue("type", value as AccountInput["type"])}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-12 bg-gray-50 border-gray-200 rounded-xl">
                   <SelectValue placeholder="Pilih tipe akun" />
                 </SelectTrigger>
                 <SelectContent>
@@ -298,13 +340,14 @@ export function AccountList() {
                 </SelectContent>
               </Select>
             </div>
+            
             {!editingAccount && (
               <div className="space-y-2">
-                <Label htmlFor="initial_balance">Saldo Awal</Label>
+                <Label className="text-sm font-medium text-gray-700">Saldo Awal</Label>
                 <Input
-                  id="initial_balance"
                   type="number"
                   {...register("initial_balance", { valueAsNumber: true })}
+                  className="h-12 bg-gray-50 border-gray-200 rounded-xl"
                 />
                 {errors.initial_balance && (
                   <p className="text-sm text-red-500">
@@ -313,19 +356,29 @@ export function AccountList() {
                 )}
               </div>
             )}
+            
             <div className="space-y-2">
-              <Label htmlFor="notes">Catatan (Opsional)</Label>
-              <Textarea id="notes" {...register("notes")} />
+              <Label className="text-sm font-medium text-gray-700">Catatan (Opsional)</Label>
+              <Textarea
+                {...register("notes")}
+                className="bg-gray-50 border-gray-200 rounded-xl"
+              />
             </div>
-            <DialogFooter>
+            
+            <DialogFooter className="gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsDialogOpen(false)}
+                className="rounded-xl"
               >
                 Batal
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 rounded-xl"
+              >
                 {isSubmitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : null}
@@ -336,22 +389,24 @@ export function AccountList() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Hapus Akun</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl">Hapus Akun</DialogTitle>
+            <DialogDescription className="text-gray-500">
               Apakah Anda yakin ingin menghapus akun ini? Tindakan ini tidak dapat
               dibatalkan.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)} className="rounded-xl">
               Batal
             </Button>
             <Button
               variant="destructive"
               onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+              className="rounded-xl"
             >
               Hapus
             </Button>

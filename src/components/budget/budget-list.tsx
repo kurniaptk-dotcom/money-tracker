@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Pencil, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, AlertTriangle, CheckCircle2, Target } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { budgetSchema, type BudgetInput } from "@/lib/validators";
 import { formatCurrency } from "@/lib/utils";
@@ -13,12 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -34,8 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 
 interface BudgetWithCategory extends Budget {
@@ -206,18 +198,35 @@ export function BudgetList() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
+            <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
+          </div>
+          <div className="h-10 w-32 bg-gray-200 rounded-xl animate-pulse" />
+        </div>
+        <div className="bg-gradient-to-r from-teal-500 to-emerald-500 rounded-2xl p-6 h-40 animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl p-6 h-48 animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
 
+  const totalBudget = budgets.reduce((sum, b) => sum + Number(b.amount), 0);
+  const totalSpent = budgets.reduce((sum, b) => sum + (b.spent || 0), 0);
+  const totalPercentage = totalBudget > 0 ? Math.min((totalSpent / totalBudget) * 100, 100) : 0;
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Anggaran</h1>
-          <p className="text-muted-foreground">Kelola anggaran pengeluaran Anda</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Anggaran</h1>
+          <p className="text-gray-500 mt-1">Kelola anggaran pengeluaran Anda</p>
         </div>
         <Button
           onClick={() => {
@@ -225,100 +234,169 @@ export function BudgetList() {
             reset();
             setIsDialogOpen(true);
           }}
+          className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 rounded-xl"
         >
           <Plus className="mr-2 h-4 w-4" />
           Tambah Anggaran
         </Button>
       </div>
 
-      {budgets.length === 0 ? (
-        <Card>
-          <CardContent className="py-8">
-            <p className="text-center text-muted-foreground">
-              Belum ada anggaran. Buat anggaran pertama Anda!
+      {/* Total Anggaran Card */}
+      <div className="bg-gradient-to-r from-teal-500 via-teal-600 to-emerald-500 rounded-2xl p-6 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20" />
+        <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full -ml-10 -mb-10" />
+        
+        <div className="relative z-10 flex items-center gap-6">
+          {/* Progress Ring */}
+          <div className="relative w-24 h-24">
+            <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+              <circle
+                cx="50"
+                cy="50"
+                r="40"
+                fill="transparent"
+                stroke="rgba(255,255,255,0.2)"
+                strokeWidth="10"
+              />
+              <circle
+                cx="50"
+                cy="50"
+                r="40"
+                fill="transparent"
+                stroke="white"
+                strokeWidth="10"
+                strokeDasharray={`${totalPercentage * 2.51} 251.2`}
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-lg font-bold">{Math.round(totalPercentage)}%</span>
+            </div>
+          </div>
+          
+          <div className="flex-1">
+            <p className="text-white/80 text-sm font-medium">Total Anggaran Bulanan</p>
+            <p className="text-2xl md:text-3xl font-bold font-mono mt-1">
+              {formatCurrency(totalSpent)} / {formatCurrency(totalBudget)}
             </p>
-          </CardContent>
-        </Card>
+            <p className="text-white/60 text-sm mt-2">
+              {totalBudget - totalSpent >= 0
+                ? `Sisa ${formatCurrency(totalBudget - totalSpent)}`
+                : `Over ${formatCurrency(Math.abs(totalBudget - totalSpent))}`}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Budget Cards Grid */}
+      {budgets.length === 0 ? (
+        <div className="bg-white p-12 text-center rounded-2xl border border-gray-100">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+            <Target className="h-8 w-8 text-gray-400" />
+          </div>
+          <p className="text-lg font-medium text-gray-900">Belum ada anggaran</p>
+          <p className="text-sm text-gray-500 mt-1">Buat anggaran pertama Anda</p>
+        </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {budgets.map((budget) => {
-            const percentage = Math.min((budget.spent || 0) / Number(budget.amount) * 100, 100);
+            const percentage = Math.min(((budget.spent || 0) / Number(budget.amount)) * 100, 100);
             const status = getBudgetStatus(budget.spent || 0, Number(budget.amount));
             const remaining = Number(budget.amount) - (budget.spent || 0);
 
             return (
-              <Card key={budget.id}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {budget.category_name}
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    <Badge className={status.bg + " " + status.color}>
-                      {status.label}
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
+              <div
+                key={budget.id}
+                className="bg-white rounded-2xl p-6 border border-gray-100 hover:shadow-lg transition-all"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center">
+                      <Target className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{budget.category_name}</p>
+                      <p className="text-sm text-gray-500">
+                        {budget.period === "monthly" ? "Bulanan" : "Tahunan"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
                       onClick={() => handleEdit(budget)}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
+                      <Pencil className="h-4 w-4 text-gray-500" />
+                    </button>
+                    <button
                       onClick={() => setDeleteConfirmId(budget.id)}
+                      className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </button>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Terpakai</span>
-                    <span className="font-medium">
-                      {formatCurrency(budget.spent || 0)} / {formatCurrency(Number(budget.amount))}
+                </div>
+
+                {/* Progress Bar */}
+                <div className="mb-3">
+                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-1000 ${
+                        percentage >= 100
+                          ? "bg-red-500"
+                          : percentage >= 80
+                          ? "bg-yellow-500"
+                          : "bg-gradient-to-r from-teal-500 to-emerald-500"
+                      }`}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm text-gray-500">
+                    {formatCurrency(budget.spent || 0)} / {formatCurrency(Number(budget.amount))}
+                  </span>
+                  <span className={`text-sm font-semibold ${status.color}`}>
+                    {percentage.toFixed(1)}%
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${status.bg} ${status.color}`}>
+                    {status.label}
+                  </span>
+                  {budget.rollover_enabled && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-600">
+                      Rollover
                     </span>
-                  </div>
-                  <Progress value={percentage} className="h-2" />
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">{percentage.toFixed(1)}%</span>
-                    <span className={remaining >= 0 ? "text-green-500" : "text-red-500"}>
-                      {remaining >= 0 ? `Sisa ${formatCurrency(remaining)}` : `Over ${formatCurrency(Math.abs(remaining))}`}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{budget.period === "monthly" ? "Bulanan" : "Tahunan"}</span>
-                    {budget.rollover_enabled && (
-                      <Badge variant="outline" className="text-xs">Rollover</Badge>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
       )}
 
+      {/* Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-xl">
               {editingBudget ? "Edit Anggaran" : "Tambah Anggaran Baru"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-gray-500">
               Tetapkan batas pengeluaran untuk setiap kategori
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="category_id">Kategori</Label>
+              <Label className="text-sm font-medium text-gray-700">Kategori</Label>
               <Select
                 value={watch("category_id")}
                 onValueChange={(value) => { if (value) setValue("category_id", value); }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-12 bg-gray-50 border-gray-200 rounded-xl">
                   <SelectValue placeholder="Pilih kategori" />
                 </SelectTrigger>
                 <SelectContent>
@@ -337,12 +415,12 @@ export function BudgetList() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="amount">Jumlah Anggaran</Label>
+              <Label className="text-sm font-medium text-gray-700">Jumlah Anggaran</Label>
               <Input
-                id="amount"
                 type="number"
                 placeholder="0"
                 {...register("amount", { valueAsNumber: true })}
+                className="h-12 bg-gray-50 border-gray-200 rounded-xl"
               />
               {errors.amount && (
                 <p className="text-sm text-red-500">{errors.amount.message}</p>
@@ -350,12 +428,12 @@ export function BudgetList() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="period">Periode</Label>
+              <Label className="text-sm font-medium text-gray-700">Periode</Label>
               <Select
                 value={watchPeriod}
                 onValueChange={(value) => setValue("period", value as "monthly" | "yearly")}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-12 bg-gray-50 border-gray-200 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -365,34 +443,42 @@ export function BudgetList() {
               </Select>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
               <div className="space-y-0.5">
-                <Label htmlFor="rollover">Rollover</Label>
-                <p className="text-xs text-muted-foreground">
+                <Label className="text-sm font-medium text-gray-700">Rollover</Label>
+                <p className="text-xs text-gray-500">
                   Sisa anggaran ditambahkan ke periode berikutnya
                 </p>
               </div>
               <Switch
-                id="rollover"
                 checked={watchRollover}
                 onCheckedChange={(checked) => setValue("rollover_enabled", checked)}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="start_date">Tanggal Mulai</Label>
-              <Input id="start_date" type="date" {...register("start_date")} />
+              <Label className="text-sm font-medium text-gray-700">Tanggal Mulai</Label>
+              <Input
+                type="date"
+                {...register("start_date")}
+                className="h-12 bg-gray-50 border-gray-200 rounded-xl"
+              />
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsDialogOpen(false)}
+                className="rounded-xl"
               >
                 Batal
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 rounded-xl"
+              >
                 {isSubmitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : null}
@@ -403,21 +489,23 @@ export function BudgetList() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Hapus Anggaran</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl">Hapus Anggaran</DialogTitle>
+            <DialogDescription className="text-gray-500">
               Apakah Anda yakin ingin menghapus anggaran ini?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)} className="rounded-xl">
               Batal
             </Button>
             <Button
               variant="destructive"
               onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+              className="rounded-xl"
             >
               Hapus
             </Button>

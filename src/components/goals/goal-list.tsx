@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Pencil, Trash2, Target, CheckCircle2, Calendar } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Target, CheckCircle2, Calendar, TrendingUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { goalSchema, goalContributionSchema, type GoalInput, type GoalContributionInput } from "@/lib/validators";
 import { formatCurrency, formatDateShort } from "@/lib/utils";
@@ -13,12 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -34,8 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 
 export function GoalList() {
@@ -44,6 +36,7 @@ export function GoalList() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"all" | "in-progress" | "completed">("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isContributeOpen, setIsContributeOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
@@ -205,20 +198,48 @@ export function GoalList() {
     return remaining / monthsLeft;
   };
 
+  const filteredGoals = goals.filter((goal) => {
+    if (activeTab === "in-progress") return !goal.is_completed;
+    if (activeTab === "completed") return goal.is_completed;
+    return true;
+  });
+
+  const totalTarget = goals.reduce((sum, g) => sum + Number(g.target_amount), 0);
+  const totalCurrent = goals.reduce((sum, g) => sum + Number(g.current_amount), 0);
+  const totalPercentage = totalTarget > 0 ? Math.min((totalCurrent / totalTarget) * 100, 100) : 0;
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
+            <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
+          </div>
+          <div className="h-10 w-32 bg-gray-200 rounded-xl animate-pulse" />
+        </div>
+        <div className="bg-gradient-to-r from-teal-500 to-emerald-500 rounded-2xl p-6 h-40 animate-pulse" />
+        <div className="flex gap-2">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-10 w-24 bg-gray-200 rounded-full animate-pulse" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl p-6 h-48 animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Tujuan Keuangan</h1>
-          <p className="text-muted-foreground">Tetapkan dan lacak target tabungan Anda</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Target Keuangan</h1>
+          <p className="text-gray-500 mt-1">Tetapkan dan lacak target tabungan Anda</p>
         </div>
         <Button
           onClick={() => {
@@ -226,95 +247,211 @@ export function GoalList() {
             reset();
             setIsDialogOpen(true);
           }}
+          className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 rounded-xl"
         >
           <Plus className="mr-2 h-4 w-4" />
           Tambah Tujuan
         </Button>
       </div>
 
-      {goals.length === 0 ? (
-        <Card>
-          <CardContent className="py-8">
-            <p className="text-center text-muted-foreground">
-              Belum ada tujuan keuangan. Buat tujuan pertama Anda!
+      {/* Total Progress Card */}
+      <div className="bg-gradient-to-r from-teal-500 via-teal-600 to-emerald-500 rounded-2xl p-6 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20" />
+        <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full -ml-10 -mb-10" />
+        
+        <div className="relative z-10 flex items-center gap-6">
+          {/* Progress Ring */}
+          <div className="relative w-24 h-24">
+            <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+              <circle
+                cx="50"
+                cy="50"
+                r="40"
+                fill="transparent"
+                stroke="rgba(255,255,255,0.2)"
+                strokeWidth="10"
+              />
+              <circle
+                cx="50"
+                cy="50"
+                r="40"
+                fill="transparent"
+                stroke="white"
+                strokeWidth="10"
+                strokeDasharray={`${totalPercentage * 2.51} 251.2`}
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-lg font-bold">{Math.round(totalPercentage)}%</span>
+            </div>
+          </div>
+          
+          <div className="flex-1">
+            <p className="text-white/80 text-sm font-medium">Total Progress Semua Tujuan</p>
+            <p className="text-2xl md:text-3xl font-bold font-mono mt-1">
+              {formatCurrency(totalCurrent)} / {formatCurrency(totalTarget)}
             </p>
-          </CardContent>
-        </Card>
+            <p className="text-white/60 text-sm mt-2">
+              {goals.filter((g) => !g.is_completed).length} tujuan aktif
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        {[
+          { value: "all", label: "Semua" },
+          { value: "in-progress", label: "Dalam Proses" },
+          { value: "completed", label: "Tercapai" },
+        ].map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => setActiveTab(tab.value as typeof activeTab)}
+            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+              activeTab === tab.value
+                ? "bg-teal-500 text-white shadow-md shadow-teal-500/30"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Goals Grid */}
+      {filteredGoals.length === 0 ? (
+        <div className="bg-white p-12 text-center rounded-2xl border border-gray-100">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+            <Target className="h-8 w-8 text-gray-400" />
+          </div>
+          <p className="text-lg font-medium text-gray-900">Belum ada tujuan</p>
+          <p className="text-sm text-gray-500 mt-1">Buat tujuan pertama Anda</p>
+        </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {goals.map((goal) => {
-            const progress = (Number(goal.current_amount) / Number(goal.target_amount)) * 100;
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredGoals.map((goal) => {
+            const progress = Math.min(
+              (Number(goal.current_amount) / Number(goal.target_amount)) * 100,
+              100
+            );
             const monthlyRequired = getMonthlyRequired(goal);
             const isCompleted = goal.is_completed;
+            const daysLeft = goal.deadline
+              ? Math.ceil(
+                  (new Date(goal.deadline).getTime() - new Date().getTime()) /
+                    (1000 * 60 * 60 * 24)
+                )
+              : null;
 
             return (
-              <Card key={goal.id} className={isCompleted ? "border-green-200 bg-green-50/50" : ""}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Target className="h-4 w-4" />
-                    {goal.name}
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    {isCompleted && (
-                      <Badge className="bg-green-100 text-green-700">
-                        <CheckCircle2 className="mr-1 h-3 w-3" />
-                        Selesai
-                      </Badge>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
+              <div
+                key={goal.id}
+                className={`bg-white rounded-2xl p-6 border border-gray-100 hover:shadow-lg transition-all ${
+                  isCompleted ? "border-green-200 bg-green-50/30" : ""
+                }`}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                      isCompleted
+                        ? "bg-green-100"
+                        : "bg-gradient-to-br from-teal-500 to-emerald-500"
+                    }`}>
+                      {isCompleted ? (
+                        <CheckCircle2 className="h-6 w-6 text-green-600" />
+                      ) : (
+                        <Target className="h-6 w-6 text-white" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{goal.name}</p>
+                      {isCompleted && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
+                          Tercapai
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
                       onClick={() => handleEdit(goal)}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
+                      <Pencil className="h-4 w-4 text-gray-500" />
+                    </button>
+                    <button
                       onClick={() => setDeleteConfirmId(goal.id)}
+                      className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </button>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className="font-medium">
-                      {formatCurrency(Number(goal.current_amount))} / {formatCurrency(Number(goal.target_amount))}
-                    </span>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="mb-3">
+                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-1000 ${
+                        isCompleted
+                          ? "bg-green-500"
+                          : "bg-gradient-to-r from-teal-500 to-emerald-500"
+                      }`}
+                      style={{ width: `${progress}%` }}
+                    />
                   </div>
-                  <Progress value={Math.min(progress, 100)} className="h-2" />
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">{progress.toFixed(1)}%</span>
-                    {goal.deadline && (
-                      <span className="flex items-center gap-1 text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
+                </div>
+
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm text-gray-500">
+                    {formatCurrency(Number(goal.current_amount))} / {formatCurrency(Number(goal.target_amount))}
+                  </span>
+                  <span className={`text-sm font-semibold ${
+                    isCompleted ? "text-green-600" : "text-teal-600"
+                  }`}>
+                    {progress.toFixed(1)}%
+                  </span>
+                </div>
+
+                {/* Info */}
+                <div className="space-y-2 text-sm">
+                  {goal.deadline && (
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <Calendar className="h-4 w-4" />
+                      <span>
+                        {daysLeft !== null && daysLeft > 0
+                          ? `${daysLeft} hari lagi`
+                          : daysLeft === 0
+                          ? "Hari ini"
+                          : "Terlambat"}
+                        {" • "}
                         {formatDateShort(goal.deadline)}
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   {monthlyRequired && !isCompleted && (
-                    <p className="text-xs text-muted-foreground">
-                      Tabung {formatCurrency(monthlyRequired)}/bulan untuk mencapai target
-                    </p>
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <TrendingUp className="h-4 w-4" />
+                      <span>Tabung {formatCurrency(monthlyRequired)}/bulan</span>
+                    </div>
                   )}
-                  {!isCompleted && (
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        setContributingGoal(goal);
-                        setIsContributeOpen(true);
-                      }}
-                    >
-                      Kontribusi
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
+                </div>
+
+                {/* Contribute Button */}
+                {!isCompleted && (
+                  <Button
+                    onClick={() => {
+                      setContributingGoal(goal);
+                      setIsContributeOpen(true);
+                    }}
+                    className="w-full mt-4 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 rounded-xl"
+                  >
+                    Kontribusi
+                  </Button>
+                )}
+              </div>
             );
           })}
         </div>
@@ -322,22 +459,22 @@ export function GoalList() {
 
       {/* Add/Edit Goal Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-xl">
               {editingGoal ? "Edit Tujuan" : "Tambah Tujuan Baru"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-gray-500">
               Tetapkan target tabungan Anda
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nama Tujuan</Label>
+              <Label className="text-sm font-medium text-gray-700">Nama Tujuan</Label>
               <Input
-                id="name"
                 placeholder="Contoh: Dana Darurat, Liburan"
                 {...register("name")}
+                className="h-12 bg-gray-50 border-gray-200 rounded-xl"
               />
               {errors.name && (
                 <p className="text-sm text-red-500">{errors.name.message}</p>
@@ -345,12 +482,12 @@ export function GoalList() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="target_amount">Target Jumlah</Label>
+              <Label className="text-sm font-medium text-gray-700">Target Jumlah</Label>
               <Input
-                id="target_amount"
                 type="number"
                 placeholder="0"
                 {...register("target_amount", { valueAsNumber: true })}
+                className="h-12 bg-gray-50 border-gray-200 rounded-xl"
               />
               {errors.target_amount && (
                 <p className="text-sm text-red-500">{errors.target_amount.message}</p>
@@ -358,27 +495,31 @@ export function GoalList() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="current_amount">Jumlah Saat Ini</Label>
+              <Label className="text-sm font-medium text-gray-700">Jumlah Saat Ini</Label>
               <Input
-                id="current_amount"
                 type="number"
                 placeholder="0"
                 {...register("current_amount", { valueAsNumber: true })}
+                className="h-12 bg-gray-50 border-gray-200 rounded-xl"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="deadline">Deadline (Opsional)</Label>
-              <Input id="deadline" type="date" {...register("deadline")} />
+              <Label className="text-sm font-medium text-gray-700">Deadline (Opsional)</Label>
+              <Input
+                type="date"
+                {...register("deadline")}
+                className="h-12 bg-gray-50 border-gray-200 rounded-xl"
+              />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="linked_account_id">Akun Terkait (Opsional)</Label>
+              <Label className="text-sm font-medium text-gray-700">Akun Terkait (Opsional)</Label>
               <Select
                 value={watch("linked_account_id") || ""}
                 onValueChange={(value) => setValue("linked_account_id", value || null)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-12 bg-gray-50 border-gray-200 rounded-xl">
                   <SelectValue placeholder="Pilih akun" />
                 </SelectTrigger>
                 <SelectContent>
@@ -392,19 +533,27 @@ export function GoalList() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes">Catatan (Opsional)</Label>
-              <Textarea id="notes" {...register("notes")} />
+              <Label className="text-sm font-medium text-gray-700">Catatan (Opsional)</Label>
+              <Textarea
+                {...register("notes")}
+                className="bg-gray-50 border-gray-200 rounded-xl"
+              />
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsDialogOpen(false)}
+                className="rounded-xl"
               >
                 Batal
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 rounded-xl"
+              >
                 {isSubmitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : null}
@@ -417,21 +566,21 @@ export function GoalList() {
 
       {/* Contribute Dialog */}
       <Dialog open={isContributeOpen} onOpenChange={setIsContributeOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Kontribusi ke {contributingGoal?.name}</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl">Kontribusi ke {contributingGoal?.name}</DialogTitle>
+            <DialogDescription className="text-gray-500">
               Tambahkan tabungan ke tujuan Anda
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmitContribute(onContribute)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="amount">Jumlah</Label>
+              <Label className="text-sm font-medium text-gray-700">Jumlah</Label>
               <Input
-                id="amount"
                 type="number"
                 placeholder="0"
                 {...registerContribute("amount", { valueAsNumber: true })}
+                className="h-12 bg-gray-50 border-gray-200 rounded-xl"
               />
               {errorsContribute.amount && (
                 <p className="text-sm text-red-500">{errorsContribute.amount.message}</p>
@@ -439,13 +588,13 @@ export function GoalList() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="account_id">Dari Akun (Opsional)</Label>
+              <Label className="text-sm font-medium text-gray-700">Dari Akun (Opsional)</Label>
               <Select
                 onValueChange={(value) => {
                   registerContribute("account_id").onChange({ target: { value } });
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-12 bg-gray-50 border-gray-200 rounded-xl">
                   <SelectValue placeholder="Pilih akun" />
                 </SelectTrigger>
                 <SelectContent>
@@ -459,19 +608,27 @@ export function GoalList() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes">Catatan (Opsional)</Label>
-              <Textarea id="notes" {...registerContribute("notes")} />
+              <Label className="text-sm font-medium text-gray-700">Catatan (Opsional)</Label>
+              <Textarea
+                {...registerContribute("notes")}
+                className="bg-gray-50 border-gray-200 rounded-xl"
+              />
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsContributeOpen(false)}
+                className="rounded-xl"
               >
                 Batal
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 rounded-xl"
+              >
                 {isSubmitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : null}
@@ -484,20 +641,21 @@ export function GoalList() {
 
       {/* Delete Confirmation */}
       <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Hapus Tujuan</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl">Hapus Tujuan</DialogTitle>
+            <DialogDescription className="text-gray-500">
               Apakah Anda yakin ingin menghapus tujuan ini?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)} className="rounded-xl">
               Batal
             </Button>
             <Button
               variant="destructive"
               onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+              className="rounded-xl"
             >
               Hapus
             </Button>
