@@ -144,7 +144,7 @@ function LoginForm() {
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white">
+      <div className="flex-1 flex items-center justify-center p-8 bg-white dark:bg-white">
         <div className="w-full max-w-md animate-fade-in">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8">
@@ -179,7 +179,7 @@ function LoginForm() {
                 type="email"
                 placeholder="nama@email.com"
                 {...register("email")}
-                className="h-12 text-base bg-gray-50 border-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
+                className="h-12 text-base bg-gray-50 dark:bg-gray-50 border-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
               />
               {errors.email && (
                 <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>
@@ -196,7 +196,7 @@ function LoginForm() {
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   {...register("password")}
-                  className="h-12 text-base bg-gray-50 border-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 pr-12"
+                  className="h-12 text-base bg-gray-50 dark:bg-gray-50 border-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 pr-12"
                 />
                 <button
                   type="button"
