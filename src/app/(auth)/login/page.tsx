@@ -49,7 +49,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="flex" style={{ minHeight: "100vh", background: "white" }}>
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-[45%] bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-600 relative overflow-hidden p-12 flex-col justify-between">
         {/* Decorative Elements */}
@@ -144,7 +144,7 @@ function LoginForm() {
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white dark:bg-white">
+      <div className="flex-1 flex items-center justify-center p-8" style={{ background: "white" }}>
         <div className="w-full max-w-md animate-fade-in">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8">
